@@ -1,8 +1,10 @@
 import React from 'react';
 
 export const RoleRow = ({ arn, name }) => (
-  <div className="role flex-item">
-    <input type="radio" name="role" value={arn} /> {name}
+  <div className="flex-item">
+    <label className="role">
+      <input type="radio" name="role" value={arn} /> {name}
+    </label>
   </div>
 );
 

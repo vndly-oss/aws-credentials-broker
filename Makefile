@@ -1,14 +1,14 @@
 .PHONY: all install-dependencies build
 
 APPLICATION_ID=aws-credentials-broker
-ORG_PATH=github.com/flowcommerce
+ORG_PATH=github.com/vndly-oss
 REPO_PATH=$(ORG_PATH)/$(APPLICATION_ID)
 export PATH := $(PWD)/bin:$(PATH)
 
 VERSION ?= $(shell git describe --tags --dirty --always | sed -e 's/^v//g')
 
 BIN_NAME=dist/${APPLICATION_ID}
-DOCKER_IMAGE=flowcommerce/$(APPLICATION_ID):$(VERSION)
+DOCKER_IMAGE=vndly-oss/$(APPLICATION_ID):$(VERSION)
 
 export GOBIN=$(PWD)/bin
 

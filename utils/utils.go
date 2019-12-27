@@ -21,8 +21,8 @@ type RoleValue struct {
 }
 
 type Roles struct {
-	SessionDuration string      `json:"SessionDuration"`
-	Roles           []RoleValue `json:"IAM_role"`
+	SessionDuration string      `json:"duration"`
+	Roles           []RoleValue `json:"role"`
 }
 
 type UserRoles struct {
@@ -70,10 +70,24 @@ func getGoogleAdminUserRoles(usrKey string, config *AdminUserConfig) (*Roles, er
 		return nil, err
 	}
 
+	// If there is no custom schema setup for the user, return empty roles
+	if len(response.CustomSchemas[customSchemaKey]) == 0 {
+		return &Roles{}, nil
+	}
+
 	var rls Roles
 	err = json.Unmarshal(response.CustomSchemas[customSchemaKey], &rls)
 	if err != nil {
 		return nil, err
+	}
+
+	duration := "3600" // 1 hours default
+	if d := os.Getenv("SAML_DURATION"); d != "" {
+		duration = d
+	}
+	// Default session duration if one is not specified in Google
+	if rls.SessionDuration == "" {
+		rls.SessionDuration = duration
 	}
 
 	return &rls, nil

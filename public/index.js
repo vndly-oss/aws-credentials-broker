@@ -37,12 +37,6 @@ class App extends React.Component {
           <img src="/dist/img/aws_logo_smile.png" alt="AWS logo" width="84" height="50" />
         </div>
         <div id="content">{content}</div>
-        <div id="footer">
-          <small>Made by</small>
-          <div>
-            <a href="https://flow.io"><img src="/dist/img/flow-logo-icon-only-color.png" width="30px" alt="Flow Commerce" /></a>
-          </div>
-        </div>
       </div>
     );
   }

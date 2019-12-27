@@ -16,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/flowcommerce/aws-credentials-broker/utils"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-contrib/secure"
@@ -24,6 +23,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
+	"github.com/vndly-oss/aws-credentials-broker/utils"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -149,6 +149,13 @@ func listRoles(conf *oauth2.Config, ngin *gin.Engine, adminConf *utils.AdminUser
 				ngin.HandleContext(c)
 				return
 			}
+		}
+
+		if len(accounts) == 0 {
+			c.HTML(http.StatusOK, "index.tmpl", gin.H{
+				"roles_json": gin.H{"error": "No AWS roles mapped to your user account. Contact your GSuite Admin"},
+			})
+			return
 		}
 
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{

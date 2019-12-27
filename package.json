@@ -6,21 +6,20 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/flowcommerce/aws-credentials-broker.git"
+    "url": "git+https://github.com/vndly-oss/aws-credentials-broker.git"
   },
   "scripts": {
     "build": "node_modules/.bin/parcel build public/index.html --out-dir templates --out-file index.tmpl --public-url ./dist/"
   },
   "dependencies": {
-    "lodash": "^4.17.13",
-    "react": "^16.4.2",
-    "react-dom": "^16.4.2"
+    "lodash": "^4.17.15",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0"
   },
   "devDependencies": {
     "babel-core": "^6.26.3",
     "babel-preset-env": "^1.7.0",
     "babel-preset-react": "^6.24.1",
-    "parcel-bundler": "^1.11.0"
+    "parcel-bundler": "^1.12.4"
   }
 }
-

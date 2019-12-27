@@ -5,6 +5,7 @@ templates/*.js
 templates/*.map
 templates/*.tmpl
 *.dec
+.env
 
 # Created by https://www.gitignore.io/api/go
 
