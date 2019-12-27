@@ -5,12 +5,14 @@ ORG_PATH=github.com/vndly-oss
 REPO_PATH=$(ORG_PATH)/$(APPLICATION_ID)
 export PATH := $(PWD)/bin:$(PATH)
 
+export GOPATH ?= $(shell go env GOPATH)
+
 VERSION ?= $(shell git describe --tags --dirty --always | sed -e 's/^v//g')
 
 BIN_NAME=dist/${APPLICATION_ID}
 DOCKER_IMAGE=vndly-oss/$(APPLICATION_ID):$(VERSION)
 
-export GOBIN=$(PWD)/bin
+export GOBIN=$(GOPATH)/bin
 
 all: install-dependencies build
 
@@ -19,7 +21,7 @@ install-dependencies:
 
 .PHONY: release-binary
 release-binary: install-dependencies
-	@go build -o /go/bin/$(APPLICATION_ID) -v $(REPO_PATH)
+	@go build -o $(GOBIN)/$(APPLICATION_ID) -v $(REPO_PATH)
 
 build:
 	go build -o ${BIN_NAME}
