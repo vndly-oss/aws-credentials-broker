@@ -164,6 +164,12 @@ func listRoles(conf *oauth2.Config, ngin *gin.Engine, adminConf *utils.AdminUser
 	}
 }
 
+func failure(c *gin.Context) {
+	c.HTML(http.StatusOK, "index.tmpl", gin.H{
+		"roles_json": gin.H{"error": "Failure to obtain AWS credentials. Check the initiating CLI for more information"},
+	})
+}
+
 func success(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.tmpl", gin.H{
 		"roles_json": gin.H{"success": true},
@@ -314,6 +320,7 @@ func main() {
 	r.GET("/roles", listRoles(conf, r, adminConf))
 	r.POST("/login", login(conf, adminConf))
 	r.GET("/success", success)
+	r.GET("/failure", failure)
 	r.GET("/", func(c *gin.Context) {
 		sesh := sessions.Default(c)
 		tok := sesh.Get(sessionKey)
