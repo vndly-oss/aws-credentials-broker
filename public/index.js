@@ -13,7 +13,6 @@ import {
 class App extends React.Component {
   render() {
     const accountsMap = JSON.parse(document.getElementById("roles").textContent);
-
     let content;
     if(accountsMap.success) {
       content = <RoleAssumed />
@@ -22,9 +21,11 @@ class App extends React.Component {
     } else {
       content = (
         <RoleSelectionForm>
-          {map(Object.keys(accountsMap), account => (
+          {map(accountsMap, (account) => (
             <AccountRoleGroup account={account}>
-              {map(accountsMap[account], (props) => (<RoleRow {...props} />))}
+              {map(account.roles, (role) => (
+                <RoleRow {...role} />
+              ))}
             </AccountRoleGroup>
           ))}
         </RoleSelectionForm>

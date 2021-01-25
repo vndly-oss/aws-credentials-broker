@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"io/ioutil"
@@ -11,6 +12,8 @@ import (
 	"golang.org/x/oauth2/jwt"
 	admin "google.golang.org/api/admin/directory/v1"
 )
+
+var NoContext = context.Background()
 
 type User struct {
 	Email string `json:"email"`
@@ -56,7 +59,7 @@ func getGoogleAdminUserRoles(usrKey string, config *AdminUserConfig) (*Roles, er
 		Subject:    config.AdminEmail,
 	}
 
-	adminClient := c.Client(oauth2.NoContext)
+	adminClient := c.Client(NoContext)
 	srv, err := admin.New(adminClient)
 	if err != nil {
 		return nil, err
@@ -95,7 +98,7 @@ func getGoogleAdminUserRoles(usrKey string, config *AdminUserConfig) (*Roles, er
 
 func GetUserRoles(accessToken string, conf *oauth2.Config, config *AdminUserConfig) (*UserRoles, error) {
 	tok := &oauth2.Token{AccessToken: accessToken}
-	client := conf.Client(oauth2.NoContext, tok)
+	client := conf.Client(NoContext, tok)
 	email, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
 		return nil, err

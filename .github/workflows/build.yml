@@ -28,6 +28,7 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v1
 
     - name: Build, tag, and push image to Amazon ECR
+      id: docker-build
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: aws-credentials-broker
@@ -36,7 +37,26 @@ jobs:
         VERSION=$(git describe --tags --always | sed -e 's/^v//g')
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION --build-arg VERSION=$(VERSION) .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION
+        echo "::set-output name=image-id::$ECR_REGISTRY/$ECR_REPOSITORY:$VERSION"
 
-    - name: Logout of Amazon ECR
-      if: always()
-      run: docker logout ${{ steps.login-ecr.outputs.registry }}
+    - name: Configure AWS Credentials (us-east-2)
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+        aws-region: us-east-2
+
+    - name: Login to Amazon ECR (us-east-2)
+      id: login-ecr-us-east-2
+      uses: aws-actions/amazon-ecr-login@v1
+    
+    - name: Push image to Amazon ECR (us-east-2)
+      env:
+        DOCKER_IMAGE: ${{ steps.docker-build.outputs.image-id }}
+        ECR_REGISTRY: ${{ steps.login-ecr-us-east-2.outputs.registry }}
+        ECR_REPOSITORY: aws-credentials-broker
+      working-directory: ./src/github.com/${{ github.repository }}
+      run: |
+        VERSION=$(git describe --tags --always | sed -e 's/^v//g')
+        docker tag $DOCKER_IMAGE $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION

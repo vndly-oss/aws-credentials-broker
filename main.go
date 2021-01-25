@@ -38,6 +38,12 @@ type IDToken struct {
 	HostedDomain string `json:"hd"`
 }
 
+type Account struct {
+	Number string       `json:"number"`
+	Name   string       `json:"name"`
+	Roles  []RoleChoice `json:"roles"`
+}
+
 const (
 	sessionKey  = "_awscb"
 	idKey       = "_awscb_id"
@@ -50,7 +56,7 @@ func callback(conf *oauth2.Config, secure bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		code := c.Query("code")
 
-		tok, err := conf.Exchange(oauth2.NoContext, code)
+		tok, err := conf.Exchange(utils.NoContext, code)
 		if err != nil {
 			log.Panic(err)
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -80,7 +86,7 @@ func callback(conf *oauth2.Config, secure bool) gin.HandlerFunc {
 			return
 		}
 
-		expiresIn := tok.Expiry.Sub(time.Now())
+		expiresIn := time.Until(tok.Expiry)
 		sesh := sessions.Default(c)
 		sesh.Set(idKey, idTok)
 		sesh.Set(sessionKey, tok.AccessToken)
@@ -117,25 +123,44 @@ func listRoles(conf *oauth2.Config, ngin *gin.Engine, adminConf *utils.AdminUser
 			return
 		}
 
-		accounts := make(map[string][]*RoleChoice)
+		var accountQuery string
+		var accountName string
+		u, err := url.Parse(sesh.Get(callbackKey).(string))
+		if err == nil {
+			accountQuery = u.Query().Get("account")
+			accountName = u.Query().Get("accountName")
+		}
+
+		accounts := make(map[string]*Account)
 		for _, r := range user.Roles.Roles {
 			v := strings.Split(r.Value, ",")
 			roleArn, providerArn := v[0], v[1]
 
 			accountPattern := regexp.MustCompile(`arn:aws:iam::(\d+):[\w-\/]+`)
-			account := accountPattern.FindStringSubmatch(providerArn)[1]
+			accountNumber := accountPattern.FindStringSubmatch(providerArn)[1]
+
+			if accountQuery != "" && accountQuery != accountNumber {
+				continue
+			}
 
 			rolePattern := regexp.MustCompile(`arn:aws:iam::\d+:role/([\w-\/]+)`)
 			role := rolePattern.FindStringSubmatch(roleArn)[1]
-
-			accounts[account] = append(accounts[account], &RoleChoice{Arn: roleArn, Name: role})
+			account := accounts[accountNumber]
+			if account == nil {
+				account = &Account{
+					Name:   accountName,
+					Number: accountNumber,
+				}
+				accounts[accountNumber] = account
+			}
+			account.Roles = append(account.Roles, RoleChoice{Arn: roleArn, Name: role})
 		}
 
 		if len(accounts) == 1 {
 			soloRole := ""
-			for _, roles := range accounts {
-				if len(roles) == 1 {
-					soloRole = roles[0].Arn
+			for _, acct := range accounts {
+				if len(acct.Roles) == 1 {
+					soloRole = acct.Roles[0].Arn
 				}
 			}
 
@@ -324,8 +349,8 @@ func main() {
 	r.GET("/", func(c *gin.Context) {
 		sesh := sessions.Default(c)
 		tok := sesh.Get(sessionKey)
+		callbackURI := c.Query("callback_uri")
 		if tok == nil {
-			callbackURI := c.Query("callback_uri")
 			// We need to make sure we're only calling loopback addresses as we only want to post to CLIs
 			match, _ := regexp.MatchString(`^https?://(127(\.\d+){1,3}|localhost)(:[0-9]+)?.*?$`, callbackURI)
 			if !match {
@@ -348,6 +373,14 @@ func main() {
 			}
 
 			c.Redirect(http.StatusTemporaryRedirect, conf.AuthCodeURL(state))
+			return
+		}
+		// Always save the callbackURI in session
+		sesh.Set(callbackKey, callbackURI)
+		err = sesh.Save()
+		if err != nil {
+			log.Panic(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 
