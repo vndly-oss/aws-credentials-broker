@@ -30,12 +30,15 @@ jobs:
     - name: Build, tag, and push image to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_DR_REGISTRY: 291931988280.dkr.ecr.us-east-2.amazonaws.com
         ECR_REPOSITORY: aws-credentials-broker
       working-directory: ./src/github.com/${{ github.repository }}
       run: |
         VERSION=$(git describe --tags --always | sed -e 's/^v//g')
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION --build-arg VERSION=$(VERSION) .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION $ECR_DR_REGISTRY/$ECR_REPOSITORY:$VERSION
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION
+        docker push $ECR_DR_REGISTRY/$ECR_REPOSITORY:$VERSION
 
     - name: Logout of Amazon ECR
       if: always()
