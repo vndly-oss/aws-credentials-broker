@@ -105,6 +105,7 @@ func GetUserRoles(accessToken string, conf *oauth2.Config, config *AdminUserConf
 	}
 	defer email.Body.Close()
 	data, _ := ioutil.ReadAll(email.Body)
+	// TODO: Look at handling an error response
 
 	var usr User
 	if err = json.Unmarshal(data, &usr); err != nil {

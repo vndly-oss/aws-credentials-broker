@@ -14,13 +14,10 @@ DOCKER_IMAGE=vndly-oss/$(APPLICATION_ID):$(VERSION)
 
 export GOBIN=$(GOPATH)/bin
 
-all: install-dependencies build
-
-install-dependencies:
-	@dep ensure -vendor-only
+all: build
 
 .PHONY: release-binary
-release-binary: install-dependencies
+release-binary:
 	@go build -o $(GOBIN)/$(APPLICATION_ID) -v $(REPO_PATH)
 
 build:

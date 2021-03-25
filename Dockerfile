@@ -1,9 +1,7 @@
 # Build the Go App
-FROM golang:1.11 AS go-builder
+FROM golang:1.16 AS go-builder
 
-RUN apt-get update && \
-  apt-get install git && \
-  go get -u github.com/golang/dep/cmd/dep
+RUN apt-get update && apt-get install git
 
 ARG VERSION
 
@@ -28,7 +26,7 @@ RUN cd /go/src/github.com/vndly-oss/aws-credentials-broker && \
   rm -rf /var/cache/apk/*
 
 # Put it all together for a runtime app
-FROM golang:1.11
+FROM golang:1.16
 
 WORKDIR /usr/local/bin
 

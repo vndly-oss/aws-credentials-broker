@@ -45,11 +45,13 @@ type Account struct {
 }
 
 const (
-	sessionKey  = "_awscb"
-	idKey       = "_awscb_id"
-	stateKey    = "_awscb_state"
-	callbackKey = "_awscb_call"
-	stateError  = "Unexpected state. Secure session cookies are missing... Please try again."
+	sessionName         = "aws-broker"
+	sessionCallbackName = "aws-broker-cb"
+	sessionKey          = "_awscb"
+	idKey               = "_awscb_id"
+	stateKey            = "_awscb_state"
+	callbackKey         = "_awscb_call"
+	stateError          = "Unexpected state. Secure session cookies are missing... Please try again."
 )
 
 func callback(conf *oauth2.Config, secure bool) gin.HandlerFunc {
@@ -87,7 +89,7 @@ func callback(conf *oauth2.Config, secure bool) gin.HandlerFunc {
 		}
 
 		expiresIn := time.Until(tok.Expiry)
-		sesh := sessions.Default(c)
+		sesh := sessions.DefaultMany(c, sessionName)
 		sesh.Set(idKey, idTok)
 		sesh.Set(sessionKey, tok.AccessToken)
 		sesh.Options(sessions.Options{
@@ -109,7 +111,8 @@ func callback(conf *oauth2.Config, secure bool) gin.HandlerFunc {
 
 func listRoles(conf *oauth2.Config, ngin *gin.Engine, adminConf *utils.AdminUserConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sesh := sessions.Default(c)
+		sesh := sessions.DefaultMany(c, sessionName)
+		seshCallback := sessions.DefaultMany(c, sessionCallbackName)
 		accessToken := sesh.Get(sessionKey)
 		if accessToken == nil {
 			c.Redirect(http.StatusTemporaryRedirect, "/")
@@ -125,7 +128,7 @@ func listRoles(conf *oauth2.Config, ngin *gin.Engine, adminConf *utils.AdminUser
 
 		var accountQuery string
 		var accountName string
-		u, err := url.Parse(sesh.Get(callbackKey).(string))
+		u, err := url.Parse(seshCallback.Get(callbackKey).(string))
 		if err == nil {
 			accountQuery = u.Query().Get("account")
 			accountName = u.Query().Get("accountName")
@@ -205,7 +208,8 @@ func login(conf *oauth2.Config, adminConf *utils.AdminUserConfig) gin.HandlerFun
 	return func(c *gin.Context) {
 		requestedRoleArn := c.PostForm("role")
 
-		sesh := sessions.Default(c)
+		sesh := sessions.DefaultMany(c, sessionName)
+		seshCallback := sessions.DefaultMany(c, sessionCallbackName)
 		idToken := sesh.Get(idKey)
 		accessToken := sesh.Get(sessionKey)
 		if accessToken == nil {
@@ -257,7 +261,7 @@ func login(conf *oauth2.Config, adminConf *utils.AdminUserConfig) gin.HandlerFun
 			return
 		}
 
-		callbackURI := fmt.Sprintf("%v", sesh.Get(callbackKey))
+		callbackURI := fmt.Sprintf("%v", seshCallback.Get(callbackKey))
 		if callbackURI == "<nil>" || callbackURI == "" {
 			log.Printf("No callback URI cookie:%v", err)
 			c.HTML(http.StatusOK, "index.tmpl", gin.H{
@@ -321,7 +325,7 @@ func main() {
 	secretKey1 := os.Getenv("COOKIE_SECRET_1")
 	secretKey2 := os.Getenv("COOKIE_SECRET_2")
 	store := cookie.NewStore([]byte(secretKey1), []byte(secretKey2))
-	r.Use(sessions.Sessions("aws-broker", store))
+	r.Use(sessions.SessionsMany([]string{"aws-broker", "aws-broker-cb"}, store))
 	r.Use(static.Serve("/dist", static.LocalFile("./templates", false)))
 	r.Use(secure.New(secure.Config{
 		IENoOpen:              true,
@@ -347,9 +351,18 @@ func main() {
 	r.GET("/success", success)
 	r.GET("/failure", failure)
 	r.GET("/", func(c *gin.Context) {
-		sesh := sessions.Default(c)
-		tok := sesh.Get(sessionKey)
+		sesh := sessions.DefaultMany(c, sessionName)
+		seshCallback := sessions.DefaultMany(c, sessionCallbackName)
 		callbackURI := c.Query("callback_uri")
+		seshCallback.Set(callbackKey, callbackURI)
+		seshCallback.Options(sessions.Options{HttpOnly: true, Path: "/"})
+		err = seshCallback.Save()
+		if err != nil {
+			log.Panic(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		tok := sesh.Get(sessionKey)
 		if tok == nil {
 			// We need to make sure we're only calling loopback addresses as we only want to post to CLIs
 			match, _ := regexp.MatchString(`^https?://(127(\.\d+){1,3}|localhost)(:[0-9]+)?.*?$`, callbackURI)
@@ -362,7 +375,6 @@ func main() {
 			}
 
 			state := base64.StdEncoding.EncodeToString(utils.RandToken(32))
-			sesh.Set(callbackKey, callbackURI)
 			sesh.Set(stateKey, state)
 			sesh.Options(sessions.Options{HttpOnly: true, Path: "/"})
 			err := sesh.Save()
@@ -373,14 +385,6 @@ func main() {
 			}
 
 			c.Redirect(http.StatusTemporaryRedirect, conf.AuthCodeURL(state))
-			return
-		}
-		// Always save the callbackURI in session
-		sesh.Set(callbackKey, callbackURI)
-		err = sesh.Save()
-		if err != nil {
-			log.Panic(err)
-			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 
